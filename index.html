@@ -67,15 +67,15 @@
 </script>
 
 <!-- ===== Split CSS bundle (loaded in dependency order; responsive last) ===== -->
-<link rel="stylesheet" href="./css/base.css?v=169"/>
-<link rel="stylesheet" href="./css/title.css?v=169"/>
-<link rel="stylesheet" href="./css/select.css?v=169"/>
-<link rel="stylesheet" href="./css/scene-game.css?v=169"/>
-<link rel="stylesheet" href="./css/overlays.css?v=169"/>
-<link rel="stylesheet" href="./css/clear-video.css?v=169"/>
-<link rel="stylesheet" href="./css/cta.css?v=169"/>
-<link rel="stylesheet" href="./css/ranking.css?v=169"/>
-<link rel="stylesheet" href="./css/responsive.css?v=169"/>
+<link rel="stylesheet" href="./css/base.css?v=177"/>
+<link rel="stylesheet" href="./css/title.css?v=177"/>
+<link rel="stylesheet" href="./css/select.css?v=177"/>
+<link rel="stylesheet" href="./css/scene-game.css?v=177"/>
+<link rel="stylesheet" href="./css/overlays.css?v=177"/>
+<link rel="stylesheet" href="./css/clear-video.css?v=177"/>
+<link rel="stylesheet" href="./css/cta.css?v=177"/>
+<link rel="stylesheet" href="./css/ranking.css?v=177"/>
+<link rel="stylesheet" href="./css/responsive.css?v=177"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -146,6 +146,9 @@
 
     <!-- ============ SELECT ============ -->
     <section class="scene" id="scene-select" data-screen-label="S Select">
+      <!-- ピクセル星アニメ背景 (.stage-bg-shimmer と同じドリフト+twinkle) -->
+      <div class="sel-stars-bg" aria-hidden="true"></div>
+
       <button class="sel-back-btn" id="sel-back-btn" aria-label="戻る">戻る</button>
 
       <div class="sel-header">
@@ -377,6 +380,6 @@
 <div class="tweaks" id="tweaks-panel"></div>
 
 <!-- ===== ESM entry — loaded as module so each js/*.js can import its peers ===== -->
-<script type="module" src="./js/main.js?v=169"></script>
+<script type="module" src="./js/main.js?v=177"></script>
 </body>
 </html>

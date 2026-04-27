@@ -3,7 +3,7 @@
    Flow: Title → GAME START → showSelectScreen() → PLAY → startGame(idx)
    ============================================================ */
 
-import { BEST_RANK_KEY } from './config.js';
+import { BEST_RANK_KEY, BEST_SCORE_KEY } from './config.js';
 import { els, showScene } from './dom.js';
 import { Snd } from './sound.js';
 import { startGame } from './gameloop.js';
@@ -17,6 +17,9 @@ let mountTs = 0; // ghost-click guard: ignore card taps within 350ms of mount
 function bestRank(idx) {
   try { return localStorage.getItem(BEST_RANK_KEY + idx) || null; } catch(e) { return null; }
 }
+function bestScore(idx) {
+  try { return parseInt(localStorage.getItem(BEST_SCORE_KEY + idx) || '0', 10) || 0; } catch(e) { return 0; }
+}
 
 function buildCards(tracks) {
   els.selList.innerHTML = '';
@@ -26,9 +29,8 @@ function buildCards(tracks) {
   randomCard.className = 'sel-card sel-card-random';
   randomCard.dataset.idx = '-1';
   randomCard.innerHTML =
-    `<div class="sel-card-body">` +
+    `<div class="sel-card-body sel-random-body">` +
       `<div class="sel-random-label">RANDOM</div>` +
-      `<div class="sel-random-sub">ランダムで曲を選ぶ</div>` +
     `</div>`;
   const onTapRandom = (e) => {
     if (performance.now() - mountTs < 350) return;
@@ -42,6 +44,7 @@ function buildCards(tracks) {
   tracks.forEach((track, i) => {
     const rank    = bestRank(i);
     const hasRank = rank && RANK_ORDER.includes(rank);
+    const score   = bestScore(i);
     const card    = document.createElement('div');
     card.className   = 'sel-card';
     card.dataset.idx = i;
@@ -50,7 +53,11 @@ function buildCards(tracks) {
         `<div class="sel-card-title">${track.title}</div>` +
       `</div>` +
       `<div class="sel-rank-section">` +
-          `<div class="sel-card-rank${hasRank ? ' rank-' + rank.toLowerCase() : ' no-rank'}">${hasRank ? rank : ''}</div>` +
+        `<div class="sel-card-rank${hasRank ? ' rank-' + rank.toLowerCase() : ' no-rank'}">${hasRank ? rank : ''}</div>` +
+      `</div>` +
+      `<div class="sel-score-section">` +
+        `<div class="sel-score-label">ハイスコア</div>` +
+        `<div class="sel-score-value">${score}</div>` +
       `</div>`;
     const onTap = (e) => {
       if (performance.now() - mountTs < 350) return;

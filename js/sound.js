@@ -220,8 +220,9 @@ export const Snd = (() => {
 
   const tap = () => { resume(); tone({ freq: 880, type: 'square', dur: 0.05, gain: 0.06 }); };
 
-  // ---- PERFECT SE: streak >= 3 はスーパーヒット（多重ヒット）、単発(+3表示)は
-  //                  メジャーチャイム。視覚階層と音の階層を揃える ----
+  // ---- PERFECT SE: streak >= 1 から常にスーパーヒット（多重ヒット）。
+  //                  streak で1半音ずつ等比上昇（step 1〜10、step 7=baseline）。
+  //                  perfectSingle はレガシーとして残置（現状未使用）。 ----
   const perfectSingle = () => {
     // メジャーチャイム（C6+E6+G6+C7 = Cメジャー和音、豊かで明るい）
     tone({ freq: 1047, type: 'sine', dur: 0.45, gain: 0.16, when: 0.00 });
@@ -229,20 +230,26 @@ export const Snd = (() => {
     tone({ freq: 1568, type: 'sine', dur: 0.45, gain: 0.11, when: 0.04 });
     tone({ freq: 2093, type: 'sine', dur: 0.50, gain: 0.08, when: 0.06 });
   };
-  const perfectStreak = () => {
+  const perfectStreak = (streak = 1) => {
     // スーパーヒット（ノイズ衝撃 + sweep + 鐘 + sparkle 多重ヒット）
+    // streak 1 (低) → 7 (元の原音=baseline) → 10 (高) で1半音ずつ等比上昇。
+    // 全10段階・約9半音(perfect 5th+)の幅。ノイズはピッチ感ないので固定。
+    const s = Math.max(1, Math.min(10, streak | 0));
+    const pitch = Math.pow(2, (s - 7) / 12);
+    // step 1:0.707 / 2:0.749 / 3:0.794 / 4:0.841 / 5:0.891 / 6:0.944
+    // step 7:1.000(baseline) / 8:1.059 / 9:1.122 / 10:1.189
     noise({ dur: 0.04, gain: 0.14, filterFreq: 3000 });
-    sweep({ fromFreq: 600, toFreq: 2400, type: 'sawtooth', sweepDur: 0.06, dur: 0.20, gain: 0.18 });
-    tone({ freq: 2637, type: 'sine',     dur: 0.35, gain: 0.16, when: 0.03 });
-    tone({ freq: 5274, type: 'triangle', dur: 0.25, gain: 0.12, when: 0.10 });
-    tone({ freq: 3136, type: 'sine',     dur: 0.40, gain: 0.10, when: 0.06 });
+    sweep({ fromFreq: 600 * pitch, toFreq: 2400 * pitch, type: 'sawtooth', sweepDur: 0.06, dur: 0.20, gain: 0.18 });
+    tone({ freq: 2637 * pitch, type: 'sine',     dur: 0.35, gain: 0.16, when: 0.03 });
+    tone({ freq: 5274 * pitch, type: 'triangle', dur: 0.25, gain: 0.12, when: 0.10 });
+    tone({ freq: 3136 * pitch, type: 'sine',     dur: 0.40, gain: 0.10, when: 0.06 });
   };
 
   const hit = (rating, opts) => {
     resume();
     if (rating === 'perfect') {
       const streak = (opts && opts.streak) || 0;
-      if (streak >= 3) perfectStreak(); else perfectSingle();
+      perfectStreak(streak || 1);
     } else if (rating === 'great') {
       tone({ freq: 880,  type: 'triangle', dur: 0.14, gain: 0.14 });
       tone({ freq: 1320, type: 'sine',     dur: 0.18, gain: 0.08, when: 0.02 });

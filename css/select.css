@@ -11,6 +11,45 @@
   padding-top: 54px; /* clear persistent sound-toggle (top:10 + h:34 + 10gap) */
 }
 
+/* ── ピクセル星アニメ背景 (.stage-bg-shimmer と同じドリフト+twinkle 3層)
+   #scene-select の背面に常駐、pointer-events:none。 */
+.sel-stars-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' shape-rendering='crispEdges'><rect x='60' y='44' width='2' height='2' fill='white' opacity='.9'/><rect x='203' y='161' width='2' height='2' fill='white' opacity='.9'/><rect x='122' y='218' width='2' height='2' fill='white' opacity='.8'/><rect x='31' y='138' width='2' height='2' fill='white' opacity='.75'/><rect x='237' y='81' width='2' height='2' fill='white' opacity='.85'/><rect x='164' y='23' width='2' height='2' fill='white' opacity='.7'/><rect x='88' y='185' width='2' height='2' fill='white' opacity='.8'/></svg>");
+  background-size: 260px 260px;
+  background-repeat: repeat;
+  animation: cosmic-drift-far 90s linear infinite;
+}
+.sel-stars-bg::before,
+.sel-stars-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.sel-stars-bg::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360' shape-rendering='crispEdges'><rect x='65' y='97' width='3' height='3' fill='white' opacity='.95'/><rect x='295' y='245' width='3' height='3' fill='%23FFE4FC' opacity='.9'/><rect x='198' y='50' width='3' height='3' fill='white' opacity='.9'/><rect x='137' y='317' width='3' height='3' fill='%23E6D2FF' opacity='.9'/><rect x='259' y='137' width='3' height='3' fill='white' opacity='.85'/></svg>");
+  background-size: 360px 360px;
+  background-repeat: repeat;
+  animation: cosmic-drift-mid 55s linear infinite, cosmic-twinkle 4.2s ease-in-out infinite;
+}
+.sel-stars-bg::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520' shape-rendering='crispEdges'><rect x='146' y='114' width='4' height='4' fill='white'/><rect x='437' y='426' width='4' height='4' fill='%23FFD2F8' opacity='.95'/><rect x='83' y='385' width='3' height='3' fill='%23F0DEFF' opacity='.95'/><rect x='333' y='239' width='3' height='3' fill='%23FFF0FF' opacity='.9'/></svg>");
+  background-size: 520px 520px;
+  background-repeat: repeat;
+  animation: cosmic-drift-near 38s linear infinite, cosmic-twinkle-fast 2.6s ease-in-out infinite;
+}
+
+/* sel-list / sel-footer を星より前面に
+   ※ .sel-header は既に position: absolute + z-index: 58 (header section参照)
+   なので、ここでは触らない。 */
+.sel-list, .sel-footer { position: relative; z-index: 2; }
+
 /* ── BACK button (absolute, top-right) ── */
 .sel-back-btn {
   position: absolute;
@@ -37,11 +76,20 @@
   opacity: 0.7;
 }
 
-/* ── Header ── */
+/* ── Header ──
+   Top row: [Sound toggle (10px,left:10)] [Title (centered, between)] [Back btn (top:10,right:10)]
+   Header is absolute so it sits on the same horizontal line as the two buttons. */
 .sel-header {
-  flex: 0 0 auto;
-  padding: 10px 16px 14px;
-  text-align: center;
+  position: absolute;
+  top: 10px;
+  left: 54px;  /* clear sound-toggle: left 10 + width 34 + 10 gap */
+  right: 54px; /* clear back-btn:    right 10 + width ~34 + 10 gap */
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* never block button taps */
+  z-index: 58; /* below button z-index 59-60 */
 }
 .sel-title-label {
   display: block;
@@ -50,6 +98,7 @@
   color: #fff;
   letter-spacing: 2px;
   text-shadow: 0 0 14px rgba(255, 255, 255, 0.65), 0 2px 8px rgba(100, 0, 180, 0.9);
+  white-space: nowrap;
 }
 
 /* ── Card list ── */
@@ -65,15 +114,18 @@
 }
 .sel-list::-webkit-scrollbar { display: none; }
 
-/* ── Card ── */
+/* ── Card ──
+   NOTE: 角丸は通常NG（メモリ feedback_no_rounded_cards）だが、本画面は
+   2026-04-27 のFigma仕様（jojima-george LP / node 218:24）でroundedカード
+   が明示指定されたため例外として border-radius を適用。 */
 .sel-card {
   flex: 1 1 0; /* equal-height distribution — fills the list */
   min-height: 60px;
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.10);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  border-radius: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -86,15 +138,21 @@
               inset 0 0 18px rgba(255, 255, 255, 0.06);
 }
 
-/* RANDOM card */
+/* RANDOM card — solid border, centered single label (matches Figma 218:24) */
 .sel-card.sel-card-random {
   flex: 0 0 60px;
-  border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.45);
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.55);
 }
 .sel-card.sel-card-random.selected {
-  border-style: solid;
-  border-color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+.sel-random-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important; /* override .sel-card-body left padding */
+  text-align: center;
 }
 
 /* ♪ badge inside RANDOM card */
@@ -124,7 +182,7 @@
   margin-top: 4px;
 }
 
-/* Rank section — right side of track cards */
+/* Rank section — middle-right of track cards (between title and score) */
 .sel-rank-section {
   flex: 0 0 auto;
   display: flex;
@@ -132,7 +190,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 0 14px;
+  padding: 0 8px;
 }
 .sel-rank-label {
   font-family: 'DotGothic16', monospace;
@@ -140,6 +198,33 @@
   color: rgba(255, 255, 255, 0.5);
   white-space: nowrap;
   letter-spacing: 0.3px;
+}
+
+/* Score section — far-right of track cards (label + value column) */
+.sel-score-section {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 14px 0 0;
+  min-width: 64px;
+}
+.sel-score-label {
+  font-family: 'DotGothic16', monospace;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.sel-score-value {
+  font-family: 'DotGothic16', monospace;
+  font-size: 14px;
+  color: #fff;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
 /* Rank badge circle — always visible, empty when no rank */
@@ -184,9 +269,10 @@
 }
 
 /* ── Footer: PLAY button only ── */
+/* horizontal padding は .sel-list と揃えること（PLAYボタン幅 = カード幅） */
 .sel-footer {
   flex: 0 0 auto;
-  padding: 14px 20px 28px;
+  padding: 14px 30px 28px;
   display: flex;
   justify-content: center;
 }
@@ -223,32 +309,37 @@
 @media (max-height: 700px) {
   #scene-select { padding-top: 48px; }
   .sel-back-btn { top: 8px; right: 8px; left: auto; height: 30px; padding: 0 8px; font-size: 10px; }
-  .sel-header { padding: 8px 16px 10px; }
+  .sel-header { top: 8px; left: 50px; right: 50px; height: 30px; }
   .sel-title-label { font-size: 13px; }
   .sel-list { gap: 6px; }
-  .sel-card { min-height: 52px; }
+  .sel-card { min-height: 52px; border-radius: 12px; }
   .sel-card.sel-card-random { flex: 0 0 52px; }
   .sel-card-rank { width: 30px; height: 30px; font-size: 11px; }
   .sel-random-note { font-size: 16px !important; }
-  .sel-rank-section { padding: 0 10px; gap: 3px; }
+  .sel-rank-section { padding: 0 6px; gap: 3px; }
   .sel-rank-label { font-size: 7px; }
+  .sel-score-section { padding: 0 10px 0 0; min-width: 56px; gap: 1px; }
+  .sel-score-label { font-size: 8px; }
+  .sel-score-value { font-size: 12px; }
   .sel-card-body { padding: 0 0 0 10px; }
   .sel-card-title { font-size: 12px; }
-  .sel-footer { padding: 10px 16px 20px; }
+  .sel-footer { padding: 10px 30px 20px; }
   .sel-play-btn { font-size: 17px; padding: 12px 0; }
 }
 
 /* ── Tall phones (min-height: 800px) ── */
 @media (min-height: 800px) {
-  .sel-header { padding: 14px 16px 18px; }
   .sel-title-label { font-size: 17px; }
   .sel-list { gap: 10px; }
-  .sel-card { min-height: 68px; }
+  .sel-card { min-height: 68px; border-radius: 16px; }
   .sel-card-rank { width: 40px; height: 40px; font-size: 15px; }
   .sel-random-note { font-size: 24px !important; }
-  .sel-rank-section { padding: 0 16px; gap: 5px; }
+  .sel-rank-section { padding: 0 10px; gap: 5px; }
   .sel-rank-label { font-size: 9px; }
+  .sel-score-section { padding: 0 16px 0 0; min-width: 72px; gap: 3px; }
+  .sel-score-label { font-size: 10px; }
+  .sel-score-value { font-size: 16px; }
   .sel-card-title { font-size: 15px; }
-  .sel-footer { padding: 16px 20px 36px; }
+  .sel-footer { padding: 16px 30px 36px; }
   .sel-play-btn { font-size: 22px; }
 }

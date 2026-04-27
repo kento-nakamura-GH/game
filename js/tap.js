@@ -88,9 +88,9 @@ export function handleTap(ev) {
   const partColor = rating === 'perfect' ? '#FFE600' : (rating === 'great' ? '#FF4DF6' : null);
   spawnParticles(partCount, partColor);
 
-  // combo popup. v=153: PERFECT text fires from the very first perfect tap.
-  // Streak ≥ 3 still gets the dedicated "PERFECT × N" callout for the hot streak feel.
-  if (rating === 'perfect' && state.perfectStreak >= 3) spawnCombo(`PERFECT × ${state.perfectStreak}`, 'perfect');
+  // combo popup. v=176: PERFECT text fires from 1st perfect tap, "PERFECT × N"
+  // callout starts from streak 2 (matches the SE pitch progression that also kicks in early).
+  if (rating === 'perfect' && state.perfectStreak >= 2) spawnCombo(`PERFECT × ${state.perfectStreak}`, 'perfect');
   else if (rating === 'perfect') spawnCombo('PERFECT', 'perfect');
   else if (state.combo >= 10 && state.combo % 5 === 0) spawnCombo(`${state.combo} COMBO!`, 'mega');
   else if (rating === 'great')   spawnCombo('+' + Math.floor(gain), '');

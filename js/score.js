@@ -5,7 +5,7 @@
    (LP/game-api/src/index.js) — see comment block in the function.
    ============================================================ */
 
-import { TUNING, BEST_RANK_KEY } from './config.js';
+import { TUNING, BEST_RANK_KEY, BEST_SCORE_KEY } from './config.js';
 import { state } from './state.js';
 import { els, showScene } from './dom.js';
 import { Snd } from './sound.js';
@@ -126,15 +126,20 @@ export function renderCTAScore() {
   const total = bd.total || state.finalScore || 0;
   const rank = computeRank(total);
   state.rank = rank;
-  // Persist best rank per track
+  // Persist best rank + best score per track
   const RANK_ORDER = ['D', 'C', 'B', 'A', 'S', 'SS'];
   try {
     const tid = state.currentTrackId;
     if (tid != null && tid >= 0) {
-      const key = BEST_RANK_KEY + tid;
-      const prev = localStorage.getItem(key);
+      const rkey = BEST_RANK_KEY + tid;
+      const prev = localStorage.getItem(rkey);
       if (!prev || RANK_ORDER.indexOf(rank) > RANK_ORDER.indexOf(prev)) {
-        localStorage.setItem(key, rank);
+        localStorage.setItem(rkey, rank);
+      }
+      const skey = BEST_SCORE_KEY + tid;
+      const prevScore = parseInt(localStorage.getItem(skey) || '0', 10);
+      if (total > prevScore) {
+        localStorage.setItem(skey, String(total));
       }
     }
   } catch(e) {}

@@ -68,10 +68,16 @@
   -webkit-text-stroke: 0;
 }
 
-/* --- download card (Figma autolayout spec) --- */
+/* --- download card (Figma autolayout spec) ---
+   背景は CasLive メインカラーの4色斜め45度グラデ
+   (右上→左下: #F76CB4 0% → #E969DB 38% → #8D82EB 77% → #6184F9 100%) */
 .cta-download-card {
   flex: 0 0 auto;
-  background: #b41f94;
+  background: linear-gradient(225deg,
+    #F76CB4 0%,
+    #E969DB 38%,
+    #8D82EB 77%,
+    #6184F9 100%);
   padding: 20px 16px;
   display: flex; flex-direction: column; gap: 25px;
   align-items: center;
