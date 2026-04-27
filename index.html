@@ -67,15 +67,15 @@
 </script>
 
 <!-- ===== Split CSS bundle (loaded in dependency order; responsive last) ===== -->
-<link rel="stylesheet" href="./css/base.css?v=177"/>
-<link rel="stylesheet" href="./css/title.css?v=177"/>
-<link rel="stylesheet" href="./css/select.css?v=177"/>
-<link rel="stylesheet" href="./css/scene-game.css?v=177"/>
-<link rel="stylesheet" href="./css/overlays.css?v=177"/>
-<link rel="stylesheet" href="./css/clear-video.css?v=177"/>
-<link rel="stylesheet" href="./css/cta.css?v=177"/>
-<link rel="stylesheet" href="./css/ranking.css?v=177"/>
-<link rel="stylesheet" href="./css/responsive.css?v=177"/>
+<link rel="stylesheet" href="./css/base.css?v=178"/>
+<link rel="stylesheet" href="./css/title.css?v=178"/>
+<link rel="stylesheet" href="./css/select.css?v=178"/>
+<link rel="stylesheet" href="./css/scene-game.css?v=178"/>
+<link rel="stylesheet" href="./css/overlays.css?v=178"/>
+<link rel="stylesheet" href="./css/clear-video.css?v=178"/>
+<link rel="stylesheet" href="./css/cta.css?v=178"/>
+<link rel="stylesheet" href="./css/ranking.css?v=178"/>
+<link rel="stylesheet" href="./css/responsive.css?v=178"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -130,12 +130,10 @@
       <button class="start-btn" id="start-btn">GAME START</button>
       <div class="powered-by">Powered by CasLive</div>
 
-      <!-- ===== DEBUG: Picker (5タップで起動). Holds both BGM and BG selectors. ===== -->
+      <!-- ===== DEBUG: Picker (5タップで起動). BG selector only (BGM選曲は scene-select に移管済). ===== -->
       <div class="song-picker" id="song-picker" aria-hidden="true">
         <div class="song-picker-card">
           <div class="song-picker-title">DEBUG</div>
-          <div class="song-picker-section-label">BGM</div>
-          <div class="song-picker-list" id="song-picker-list"></div>
           <div class="song-picker-section-label">BACKGROUND</div>
           <div class="song-picker-list" id="bg-picker-list"></div>
           <div class="song-picker-version" id="song-picker-version"></div>
@@ -380,6 +378,6 @@
 <div class="tweaks" id="tweaks-panel"></div>
 
 <!-- ===== ESM entry — loaded as module so each js/*.js can import its peers ===== -->
-<script type="module" src="./js/main.js?v=177"></script>
+<script type="module" src="./js/main.js?v=178"></script>
 </body>
 </html>

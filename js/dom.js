@@ -71,7 +71,6 @@ export function setupDom() {
     shareLine: $('#share-line'),
     shareThreads: $('#share-threads'),
     songPicker: $('#song-picker'),
-    songPickerList: $('#song-picker-list'),
     songPickerVersion: $('#song-picker-version'),
     songPickerClose: $('#song-picker-close'),
     bgPickerList: $('#bg-picker-list'),

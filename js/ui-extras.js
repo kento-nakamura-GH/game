@@ -7,7 +7,7 @@
 import {
   GAME_VERSION,
   SHARE_HASHTAGS, SHARE_URL,
-  SONG_PICKER_KEY, SONG_PICKER_TAP_WINDOW, SONG_PICKER_REQUIRED,
+  SONG_PICKER_TAP_WINDOW, SONG_PICKER_REQUIRED,
   BG_VARIANTS, BG_PICKER_KEY,
   TUNING,
 } from './config.js';
@@ -172,46 +172,9 @@ export function shareCopy() {
   }
 }
 
-/* ---------- Debug: Song picker (5連タップで起動) ---------- */
+/* ---------- Debug: Picker (5連タップで起動)
+   v=178: BGM選曲は scene-select に移管したので Song picker は廃止。BG picker のみ残置。 */
 const songTapTimes = [];
-
-function getForcedTrackIdx() {
-  try {
-    const v = localStorage.getItem(SONG_PICKER_KEY);
-    if (v === null || v === '') return null;
-    const idx = parseInt(v, 10);
-    return isNaN(idx) ? null : idx;
-  } catch (e) { return null; }
-}
-function setForcedTrackIdx(idx) {
-  try {
-    if (idx === null || idx === undefined) localStorage.removeItem(SONG_PICKER_KEY);
-    else localStorage.setItem(SONG_PICKER_KEY, String(idx));
-  } catch (e) {}
-}
-function buildSongPicker() {
-  if (!els.songPickerList) return;
-  const list = Snd.getTrackList();
-  const current = getForcedTrackIdx();
-  const items = [
-    { idx: null, label: 'RANDOM', tag: 'default' },
-    ...list.map((t, i) => ({ idx: i, label: t.title, tag: 'BPM ' + t.bpm })),
-  ];
-  els.songPickerList.innerHTML = '';
-  items.forEach((it) => {
-    const btn = document.createElement('button');
-    btn.className = 'song-picker-btn' + ((current === it.idx || (current === null && it.idx === null)) ? ' selected' : '');
-    btn.innerHTML = '<span class="sp-label">' + it.label + '</span><span class="sp-tag">' + it.tag + '</span>';
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setForcedTrackIdx(it.idx);
-      buildSongPicker();
-      closeSongPicker();
-    });
-    els.songPickerList.appendChild(btn);
-  });
-}
 
 /* ---------- BG picker ----------
    localStorage[BG_PICKER_KEY] = idx (force) | null/missing/'random' (weighted).
@@ -254,7 +217,6 @@ function buildBgPicker() {
 }
 export function openSongPicker() {
   if (!els.songPicker) return;
-  buildSongPicker();
   buildBgPicker();
   if (els.songPickerVersion) {
     const ctxState = (Snd.getCtxState && Snd.getCtxState()) || 'none';

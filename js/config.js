@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v177';
+export const GAME_VERSION = 'v178';
 
 /* ---------- Fever phase ----------
    Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
@@ -72,8 +72,7 @@ export const SHARE_URL = (typeof window !== 'undefined' && window.location)
   ? window.location.href.split('?')[0]
   : 'https://caslive.jp/';
 
-/* Song picker (debug) */
-export const SONG_PICKER_KEY = 'kyomuusa_force_track';
+/* Debug picker (5タップ起動。BGM選曲は scene-select に移管したのでBG選択のみ) */
 export const SONG_PICKER_TAP_WINDOW = 1500; // ms — taps within window count toward unlock
 export const SONG_PICKER_REQUIRED = 5;
 
