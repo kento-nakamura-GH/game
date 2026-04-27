@@ -5,7 +5,7 @@
    (LP/game-api/src/index.js) — see comment block in the function.
    ============================================================ */
 
-import { TUNING } from './config.js';
+import { TUNING, BEST_RANK_KEY } from './config.js';
 import { state } from './state.js';
 import { els, showScene } from './dom.js';
 import { Snd } from './sound.js';
@@ -126,6 +126,18 @@ export function renderCTAScore() {
   const total = bd.total || state.finalScore || 0;
   const rank = computeRank(total);
   state.rank = rank;
+  // Persist best rank per track
+  const RANK_ORDER = ['D', 'C', 'B', 'A', 'S', 'SS'];
+  try {
+    const tid = state.currentTrackId;
+    if (tid != null && tid >= 0) {
+      const key = BEST_RANK_KEY + tid;
+      const prev = localStorage.getItem(key);
+      if (!prev || RANK_ORDER.indexOf(rank) > RANK_ORDER.indexOf(prev)) {
+        localStorage.setItem(key, rank);
+      }
+    }
+  } catch(e) {}
   // "TIMING BONUS" row bundles accuracy + noMiss - decay (non-negative display)
   const timingVal = Math.max(0, (bd.accuracyBonus || 0) + (bd.noMissBonus || 0) - (bd.decayPenalty || 0));
 

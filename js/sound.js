@@ -120,6 +120,13 @@ export const Snd = (() => {
       const src = bgmIntendedSrc;
       setTimeout(() => { if (bgmIntendedSrc === src) startBGM(src); }, 0);
     }
+    // Sync preview gain with mute state
+    if (previewGain && ctx) {
+      const n = ctx.currentTime;
+      try { previewGain.gain.cancelScheduledValues(n); } catch(e) {}
+      previewGain.gain.setValueAtTime(previewGain.gain.value, n);
+      previewGain.gain.linearRampToValueAtTime(m ? 0 : PREVIEW_VOLUME, n + 0.1);
+    }
   };
   const toggle = () => { setMute(!muted); return muted; };
   const isMuted = () => muted;
@@ -381,20 +388,104 @@ export const Snd = (() => {
     }, durationMs + 80);
   };
   const titleBgmStart = () => startBGM(TITLE_BGM);
-  const gameBgmStart = () => {
+  const gameBgmStart = (trackIdx) => {
     let track = null;
-    try {
-      const forced = localStorage.getItem('kyomuusa_force_track');
-      if (forced !== null && forced !== '') {
-        const idx = parseInt(forced, 10);
-        if (!isNaN(idx) && GAME_BGM_TRACKS[idx]) track = GAME_BGM_TRACKS[idx];
-      }
-    } catch (e) {}
-    if (!track) track = GAME_BGM_TRACKS[Math.floor(Math.random() * GAME_BGM_TRACKS.length)];
+    // 1. Explicit index from select screen takes priority
+    if (trackIdx != null && GAME_BGM_TRACKS[trackIdx]) {
+      track = GAME_BGM_TRACKS[trackIdx];
+    } else {
+      // 2. Debug picker override
+      try {
+        const forced = localStorage.getItem('kyomuusa_force_track');
+        if (forced !== null && forced !== '') {
+          const idx = parseInt(forced, 10);
+          if (!isNaN(idx) && GAME_BGM_TRACKS[idx]) track = GAME_BGM_TRACKS[idx];
+        }
+      } catch (e) {}
+      // 3. Random fallback
+      if (!track) track = GAME_BGM_TRACKS[Math.floor(Math.random() * GAME_BGM_TRACKS.length)];
+    }
     startBGM(track.src);
     return track;
   };
   const getTrackList = () => GAME_BGM_TRACKS;
+
+  /* ---- Preview playback (song selection screen) ----
+     Separate source+gain chain from main BGM so preview and BGM never collide.
+     Loop mechanic: play 10s → 0.3s fade out → restart with 0.3s fade in → repeat. */
+  const PREVIEW_VOLUME = BGM_VOLUME * 0.8;
+  const PREVIEW_FADE_MS = 300;
+  const PREVIEW_LOOP_MS = 10000;
+  let previewSource = null;
+  let previewGain = null;
+  let previewTimer = null;
+  let previewTrackIdx = -1;
+
+  const teardownPreview = () => {
+    if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+    const s = previewSource; const g = previewGain;
+    previewSource = null; previewGain = null;
+    if (s) { try { s._intentionallyStopped = true; s.stop(0); } catch(e) {} try { s.disconnect(); } catch(e) {} }
+    if (g) { try { g.disconnect(); } catch(e) {} }
+  };
+
+  const playPreviewBuffer = (idx, buf) => {
+    if (previewTrackIdx !== idx) return;
+    const c = ensure(); if (!c) return;
+    teardownPreview();
+    previewTrackIdx = idx; // teardownPreview doesn't reset idx
+    const gain = c.createGain();
+    const now = c.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(muted ? 0 : PREVIEW_VOLUME, now + PREVIEW_FADE_MS / 1000);
+    gain.connect(c.destination);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(gain);
+    src.start(now);
+    previewSource = src;
+    previewGain = gain;
+    // Schedule fade-out → restart loop
+    previewTimer = setTimeout(() => {
+      if (previewTrackIdx !== idx || !previewGain || !ctx) return;
+      const n = ctx.currentTime;
+      try { previewGain.gain.cancelScheduledValues(n); } catch(e) {}
+      previewGain.gain.setValueAtTime(previewGain.gain.value, n);
+      previewGain.gain.linearRampToValueAtTime(0.0001, n + PREVIEW_FADE_MS / 1000);
+      previewTimer = setTimeout(() => { playPreviewBuffer(idx, buf); }, PREVIEW_FADE_MS + 30);
+    }, PREVIEW_LOOP_MS - PREVIEW_FADE_MS);
+  };
+
+  const previewStart = (trackIdx) => {
+    if (trackIdx < 0 || trackIdx >= GAME_BGM_TRACKS.length) return;
+    previewTrackIdx = trackIdx;
+    teardownPreview();
+    previewTrackIdx = trackIdx;
+    resume();
+    const buf = bgmBufferCache.get(GAME_BGM_TRACKS[trackIdx].src);
+    if (buf) { playPreviewBuffer(trackIdx, buf); return; }
+    loadBgmBuffer(GAME_BGM_TRACKS[trackIdx].src).then(b => {
+      if (b && previewTrackIdx === trackIdx) playPreviewBuffer(trackIdx, b);
+    }).catch(() => {});
+  };
+
+  const previewStop = () => {
+    previewTrackIdx = -1;
+    if (!previewGain || !ctx) { teardownPreview(); return; }
+    const n = ctx.currentTime;
+    try { previewGain.gain.cancelScheduledValues(n); } catch(e) {}
+    previewGain.gain.setValueAtTime(previewGain.gain.value, n);
+    previewGain.gain.linearRampToValueAtTime(0.0001, n + PREVIEW_FADE_MS / 1000);
+    if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+    const s = previewSource; const g = previewGain;
+    previewSource = null; previewGain = null;
+    setTimeout(() => {
+      if (s) { try { s._intentionallyStopped = true; s.stop(0); } catch(e) {} try { s.disconnect(); } catch(e) {} }
+      if (g) { try { g.disconnect(); } catch(e) {} }
+    }, PREVIEW_FADE_MS + 50);
+  };
+
   const ctaBgmStart = () => {
     const src = CTA_BGM_TRACKS[Math.floor(Math.random() * CTA_BGM_TRACKS.length)];
     startBGM(src);
@@ -416,6 +507,7 @@ export const Snd = (() => {
     retryBgm, bgmCurrentTime, bgmPreload,
     toggle, setMute, isMuted, resume,
     seLoad, playSE, getTrackList,
+    previewStart, previewStop,
     unlockAudio, ensurePlaying,
     getCtxState, getBgmState, getAudioSessionType,
   };

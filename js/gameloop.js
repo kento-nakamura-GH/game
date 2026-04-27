@@ -65,7 +65,7 @@ function pickBackground() {
 }
 
 /* ---------- Start / Clear ---------- */
-export function startGame() {
+export function startGame(trackIdx) {
   showScene('game');
   state.gauge = 0; state.taps = 0; state.combo = 0; state.perfectStreak = 0; state.maxCombo = 0;
   state.perfectCount = 0; state.greatCount = 0; state.goodCount = 0; state.missCount = 0;
@@ -121,7 +121,7 @@ export function startGame() {
   // 3-2-1-GO! count lands. Safe now thanks to useAudioTimeSync: the Galaxy
   // v=88 failure mode (wall-clock cycleDuration inflating during cold-start
   // warmup) is gone because updateIndicator/judgeTap both run in audio time.
-  const track = Snd.gameBgmStart();
+  const track = Snd.gameBgmStart(trackIdx);
   state.currentBgmMeta = track;
   state.currentTrackId = Snd.getTrackList().findIndex(t => t.src === track.src);
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;

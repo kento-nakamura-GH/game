@@ -12,12 +12,14 @@ export const els = {};
 
 export function setupDom() {
   els.scenes = {
-    title: $('#scene-title'),
-    game:  $('#scene-game'),
-    clear: $('#scene-clear'),
-    video: $('#scene-video'),
-    cta:   $('#scene-cta'),
+    title:  $('#scene-title'),
+    select: $('#scene-select'),
+    game:   $('#scene-game'),
+    clear:  $('#scene-clear'),
+    video:  $('#scene-video'),
+    cta:    $('#scene-cta'),
   };
+  els.selList = $('#sel-list');
   Object.assign(els, {
     startBtn: $('#start-btn'),
     pushBtn: $('#push-btn'),

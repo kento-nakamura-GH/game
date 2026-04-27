@@ -67,14 +67,15 @@
 </script>
 
 <!-- ===== Split CSS bundle (loaded in dependency order; responsive last) ===== -->
-<link rel="stylesheet" href="./css/base.css?v=156"/>
-<link rel="stylesheet" href="./css/title.css?v=156"/>
-<link rel="stylesheet" href="./css/scene-game.css?v=156"/>
-<link rel="stylesheet" href="./css/overlays.css?v=156"/>
-<link rel="stylesheet" href="./css/clear-video.css?v=156"/>
-<link rel="stylesheet" href="./css/cta.css?v=156"/>
-<link rel="stylesheet" href="./css/ranking.css?v=156"/>
-<link rel="stylesheet" href="./css/responsive.css?v=156"/>
+<link rel="stylesheet" href="./css/base.css?v=169"/>
+<link rel="stylesheet" href="./css/title.css?v=169"/>
+<link rel="stylesheet" href="./css/select.css?v=169"/>
+<link rel="stylesheet" href="./css/scene-game.css?v=169"/>
+<link rel="stylesheet" href="./css/overlays.css?v=169"/>
+<link rel="stylesheet" href="./css/clear-video.css?v=169"/>
+<link rel="stylesheet" href="./css/cta.css?v=169"/>
+<link rel="stylesheet" href="./css/ranking.css?v=169"/>
+<link rel="stylesheet" href="./css/responsive.css?v=169"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -140,6 +141,23 @@
           <div class="song-picker-version" id="song-picker-version"></div>
           <button class="song-picker-close" id="song-picker-close" aria-label="閉じる">CLOSE</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ SELECT ============ -->
+    <section class="scene" id="scene-select" data-screen-label="S Select">
+      <button class="sel-back-btn" id="sel-back-btn" aria-label="戻る">戻る</button>
+
+      <div class="sel-header">
+        <span class="sel-title-label">曲を選択してね</span>
+      </div>
+
+      <div class="sel-list" id="sel-list">
+        <!-- track cards injected by select.js -->
+      </div>
+
+      <div class="sel-footer">
+        <button class="sel-play-btn" id="sel-play-btn">PLAY ▶</button>
       </div>
     </section>
 
@@ -356,6 +374,6 @@
 <div class="tweaks" id="tweaks-panel"></div>
 
 <!-- ===== ESM entry — loaded as module so each js/*.js can import its peers ===== -->
-<script type="module" src="./js/main.js?v=156"></script>
+<script type="module" src="./js/main.js?v=169"></script>
 </body>
 </html>

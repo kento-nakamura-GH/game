@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v156';
+export const GAME_VERSION = 'v169';
 
 /* ---------- Fever phase ----------
    Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
@@ -88,3 +88,6 @@ export const BG_VARIANTS = [
   { src: './assets/gameBG_B.webp', label: 'BG_B', weight: 20, bleed: '#0F1749' },
 ];
 export const BG_PICKER_KEY = 'kyomuusa_force_bg';
+
+/* Best rank per track — keyed as BEST_RANK_KEY + trackIndex (0-4) */
+export const BEST_RANK_KEY = 'kyomuusa_bestRank_';
