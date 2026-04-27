@@ -245,11 +245,11 @@
   flex-shrink: 0;
 }
 
-/* SS rank — CTA と同じ 5色 rainbow グラデ。bg-clip:text を pseudo に移して
-   親円のbgは保持（cta.css の .cta-rank-badge.rank-SS と同色仕様）。 */
+/* SS rank — 2色グリーン系グラデ (Figma仕様 #9AFF85 → #69FFDA)。
+   bg-clip:text を pseudo に置いて親円のbgは保持。 */
 .sel-card-rank.rank-ss {
-  border-color: #FF3370;
-  background: rgba(255, 215, 0, 0.10);
+  border-color: #9AFF85;
+  background: rgba(154, 255, 133, 0.10);
   color: transparent; /* 元のSS文字を不可視化 → ::before の gradient に置換 */
   position: relative;
 }
@@ -262,11 +262,11 @@
   justify-content: center;
   font: inherit;
   letter-spacing: -1px;
-  background-image: linear-gradient(90deg, #FFE600 0%, #FF8A00 25%, #FF3370 50%, #B14BFF 75%, #3EE8FF 100%);
+  background-image: linear-gradient(90deg, #9AFF85 0%, #69FFDA 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 10px rgba(255, 77, 150, 0.45);
+  text-shadow: 0 0 10px rgba(105, 255, 218, 0.45);
 }
 .sel-card-rank.rank-s  { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.10); }
 .sel-card-rank.rank-a  { border-color: #FFB7B7; color: #FFB7B7; background: rgba(255,183,183,0.12); }
