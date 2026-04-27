@@ -1,0 +1,18 @@
+name = "kyomuusa-ranking"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+# Allowed origins for CORS. Comma-separated. Add prod domain when decided.
+[vars]
+ALLOWED_ORIGINS = "https://kento-nakamura-gh.github.io,https://jojimageorge.github.io,https://caslive.jp,http://localhost:8000,http://127.0.0.1:8000"
+TOP_LIST_SIZE = "100"
+TOP_RETURN_SIZE = "5"
+NAME_MAX_LENGTH = "5"
+SUBMISSION_TTL_SECONDS = "600"
+
+# KV namespace for ranking storage.
+[[kv_namespaces]]
+binding = "RANKING"
+id = "c06b8ad201e24d7fbe114c3c7a8fb792"
+preview_id = "af2ff69798d447ecbbf82d070afcb47c"
