@@ -133,9 +133,9 @@
 }
 .sel-card.selected {
   background: rgba(255, 255, 255, 0.20);
-  border-color: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25),
-              inset 0 0 18px rgba(255, 255, 255, 0.06);
+  border-color: #FFDB49; /* CasLive アクセント黄 */
+  box-shadow: 0 0 0 1px rgba(255, 219, 73, 0.35),
+              inset 0 0 18px rgba(255, 219, 73, 0.10);
 }
 
 /* RANDOM card — solid border, centered single label (matches Figma 218:24) */
@@ -145,7 +145,7 @@
   border-color: rgba(255, 255, 255, 0.55);
 }
 .sel-card.sel-card-random.selected {
-  border-color: rgba(255, 255, 255, 0.95);
+  border-color: #FFDB49;
 }
 .sel-random-body {
   display: flex;
@@ -245,9 +245,31 @@
   flex-shrink: 0;
 }
 
-.sel-card-rank.rank-ss { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.15); }
+/* SS rank — CTA と同じ 5色 rainbow グラデ。bg-clip:text を pseudo に移して
+   親円のbgは保持（cta.css の .cta-rank-badge.rank-SS と同色仕様）。 */
+.sel-card-rank.rank-ss {
+  border-color: #FF3370;
+  background: rgba(255, 215, 0, 0.10);
+  color: transparent; /* 元のSS文字を不可視化 → ::before の gradient に置換 */
+  position: relative;
+}
+.sel-card-rank.rank-ss::before {
+  content: 'SS';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  letter-spacing: -1px;
+  background-image: linear-gradient(90deg, #FFE600 0%, #FF8A00 25%, #FF3370 50%, #B14BFF 75%, #3EE8FF 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px rgba(255, 77, 150, 0.45);
+}
 .sel-card-rank.rank-s  { border-color: #ffd700; color: #ffd700; background: rgba(255,215,0,0.10); }
-.sel-card-rank.rank-a  { border-color: #ff88cc; color: #ff88cc; background: rgba(255,136,204,0.10); }
+.sel-card-rank.rank-a  { border-color: #FFB7B7; color: #FFB7B7; background: rgba(255,183,183,0.12); }
 .sel-card-rank.rank-b  { border-color: #00e5ff; color: #00e5ff; background: rgba(0,229,255,0.10); }
 .sel-card-rank.rank-c  { border-color: #aaccff; color: #aaccff; background: rgba(170,204,255,0.10); }
 
