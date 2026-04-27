@@ -12,6 +12,7 @@ const RANK_ORDER = ['D', 'C', 'B', 'A', 'S', 'SS'];
 
 // -1 means RANDOM selected
 let selectedIdx = -1;
+let mountTs = 0; // ghost-click guard: ignore card taps within 350ms of mount
 
 function bestRank(idx) {
   try { return localStorage.getItem(BEST_RANK_KEY + idx) || null; } catch(e) { return null; }
@@ -28,11 +29,11 @@ function buildCards(tracks) {
     `<div class="sel-card-body">` +
       `<div class="sel-random-label">RANDOM</div>` +
       `<div class="sel-random-sub">ランダムで曲を選ぶ</div>` +
-    `</div>` +
-    `<div class="sel-rank-section">` +
-      `<div class="sel-card-rank sel-random-note">♪</div>` +
     `</div>`;
-  const onTapRandom = (e) => { e.preventDefault(); selectTrack(-1); };
+  const onTapRandom = (e) => {
+    if (performance.now() - mountTs < 350) return;
+    e.preventDefault(); selectTrack(-1);
+  };
   randomCard.addEventListener('touchstart', onTapRandom, { passive: false });
   randomCard.addEventListener('click', onTapRandom);
   els.selList.appendChild(randomCard);
@@ -50,9 +51,11 @@ function buildCards(tracks) {
       `</div>` +
       `<div class="sel-rank-section">` +
           `<div class="sel-card-rank${hasRank ? ' rank-' + rank.toLowerCase() : ' no-rank'}">${hasRank ? rank : ''}</div>` +
-          `<div class="sel-rank-label">RANK</div>` +
       `</div>`;
-    const onTap = (e) => { e.preventDefault(); selectTrack(i); };
+    const onTap = (e) => {
+      if (performance.now() - mountTs < 350) return;
+      e.preventDefault(); selectTrack(i);
+    };
     card.addEventListener('touchstart', onTap, { passive: false });
     card.addEventListener('click', onTap);
     els.selList.appendChild(card);
@@ -81,10 +84,11 @@ function refreshSelection() {
 }
 
 export function showSelectScreen() {
+  selectedIdx = -1;
+  mountTs = performance.now(); // start ghost-click suppression window
   const tracks = Snd.getTrackList();
   buildCards(tracks);
-  selectedIdx = -1; // Start with RANDOM selected
-  refreshSelection();
+  refreshSelection(); // RANDOM (.sel-card[data-idx="-1"]) gets .selected
   // Title BGM keeps playing — no audio change on entering select screen
   showScene('select');
 }
@@ -100,11 +104,26 @@ export function initSelectScreen() {
   };
 
   const doPlay = () => {
-    hideSelectScreen();
     const trackIdx = selectedIdx === -1
       ? Math.floor(Math.random() * Snd.getTrackList().length)
       : selectedIdx;
-    startGame(trackIdx);
+    const curtain = document.getElementById('game-curtain');
+
+    // フェードイン（0.4s）
+    curtain.classList.remove('fade-out');
+    curtain.classList.add('fade-in');
+
+    // 0.4s後: プレビュー停止のみ（BGM・SEはまだ鳴らさない）
+    setTimeout(() => {
+      hideSelectScreen();
+    }, 400);
+
+    // 1.5s後: フェードアウト開始 ＆ ゲーム開始（音楽も同時スタート）
+    setTimeout(() => {
+      curtain.classList.remove('fade-in');
+      curtain.classList.add('fade-out');
+      startGame(trackIdx);
+    }, 1500);
   };
 
   on('sel-play-btn', 'touchstart', (e) => { e.preventDefault(); doPlay(); }, { passive: false });

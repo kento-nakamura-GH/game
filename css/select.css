@@ -11,11 +11,11 @@
   padding-top: 54px; /* clear persistent sound-toggle (top:10 + h:34 + 10gap) */
 }
 
-/* ── BACK button (absolute, top-left beside sound-toggle) ── */
+/* ── BACK button (absolute, top-right) ── */
 .sel-back-btn {
   position: absolute;
   top: 10px;
-  left: 54px; /* sound-toggle: left:10 + w:34 + 10gap */
+  right: 10px;
   z-index: 59;
   height: 34px;
   padding: 0 10px;
@@ -222,7 +222,7 @@
 /* ── iPhone SE (max-height: 700px) ── */
 @media (max-height: 700px) {
   #scene-select { padding-top: 48px; }
-  .sel-back-btn { top: 8px; left: 50px; height: 30px; padding: 0 8px; font-size: 10px; }
+  .sel-back-btn { top: 8px; right: 8px; left: auto; height: 30px; padding: 0 8px; font-size: 10px; }
   .sel-header { padding: 8px 16px 10px; }
   .sel-title-label { font-size: 13px; }
   .sel-list { gap: 6px; }
