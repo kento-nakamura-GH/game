@@ -517,7 +517,14 @@ function validateSubmission(body) {
 
   // M-3 (V-01): mashTimeSec <= mashWindowSec — you can't mash longer than the
   // window allows. Only enforce when both are present.
-  if (mashTimeSec !== null && mashWindowSec !== null && mashTimeSec > mashWindowSec) {
+  // Client sends mashTimeSec = clearTime - rhythmClearSec, which includes UI
+  // overhead between rhythm-clear (gauge=99) and triggerClear: ~350ms mash
+  // startup delay + ~300ms finishMashMode→triggerClear settle + scheduler drift.
+  // Allow MASH_TIME_TOLERANCE_SEC slack so legitimate plays aren't rejected.
+  // mashScore inflation is already blocked by mashTaps * 800 cap and
+  // mash_taps_exceed_human_rate, so this check is defense-in-depth.
+  const MASH_TIME_TOLERANCE_SEC = 3;
+  if (mashTimeSec !== null && mashWindowSec !== null && mashTimeSec > mashWindowSec + MASH_TIME_TOLERANCE_SEC) {
     return fail('mash_time_exceeds_window');
   }
 
