@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: linear-gradient(160deg, #f472b6 0%, #c026d3 48%, #7c3aed 100%);
+  background: linear-gradient(160deg, #FF52AD 0%, #c026d3 48%, #7c3aed 100%);
   padding-top: 54px; /* clear persistent sound-toggle (top:10 + h:34 + 10gap) */
 }
 
@@ -132,7 +132,7 @@
   transition: border-color 0.12s, background 0.12s;
 }
 .sel-card.selected {
-  background: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.28);
   border-color: #FFDB49; /* CasLive アクセント黄 */
   box-shadow: 0 0 0 1px rgba(255, 219, 73, 0.35),
               inset 0 0 18px rgba(255, 219, 73, 0.10);
