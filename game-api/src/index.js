@@ -13,6 +13,7 @@
  *   - key `submission:<id>`       JSON { score, at, position, isTop5, nameAdded }
  *                                 written for every accepted submission, TTL = SUBMISSION_TTL_SECONDS
  *   - key `stats:plays`           integer counter of total accepted submissions (best-effort)
+ *   - key `rate:<ip>:<bucket>`    integer rate-limit counter (60-second buckets, TTL 120s)
  *
  * Anti-tampering (minimum viable):
  *   The server recomputes the deterministic parts of the score formula from the raw
@@ -20,6 +21,15 @@
  *   and decayTotal against upper bounds. Replaying the per-tap timeline is NOT done;
  *   this is an LP hook, not a competitive leaderboard. Hard tampering is possible but
  *   casual dev-tools tampering is rejected.
+ *
+ * Security layers (post-audit 2026-04-28):
+ *   M-1 (V-05): Origin allowlist enforce on POST/PUT
+ *   M-2 (V-16): Content-Type strict check (block text/plain CSRF)
+ *   M-3 (V-01): Extended physical-plausibility score validation
+ *   M-4 (V-02): IP-based KV rate limit (60req/min) with optional Turnstile bypass
+ *   M-5      : sanitizeName hardened against unicode whitespace + HTML special chars
+ *   M-6 (V-08): trackId integer + range validation
+ *   M-7      : Minimal security audit log via console.warn
  */
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
@@ -83,7 +93,15 @@ const SANITY = {
   mashScoreMax: 250_000, // 240 mashTaps × 800 = 192000 + headroom (v=155+)
   mashScoreVersionMin: 1,
   mashScoreVersionMax: 10,
+  // M-3 (V-01) physical-plausibility extras
+  humanMaxTapHz: 30,         // max sustained tap rate per second (very generous, sprinters tap ~25Hz)
+  minTapDensityPerSec: 0.5,  // taps must be at least 0.5 per second of clearTime
+  trackIdMin: 0,
+  trackIdMax: 9999,          // M-6
 };
+
+// M-4: Default rate limit if env var not set
+const DEFAULT_RATE_LIMIT_PER_MIN = 60;
 
 export default {
   async fetch(request, env, ctx) {
@@ -91,6 +109,7 @@ export default {
     const origin = request.headers.get('origin') || '';
     const cors = buildCors(origin, env);
 
+    // 2) OPTIONS preflight — short-circuit, no Origin enforce.
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors });
     }
@@ -101,22 +120,70 @@ export default {
       }
 
       const { pathname } = url;
+      const method = request.method;
 
-      if (request.method === 'GET' && pathname === '/api/health') {
+      // 3) GET endpoints — Origin lax, no Content-Type / rate-limit enforce.
+      //    CORS allowlist is still applied via buildCors() so cross-origin reads
+      //    return the safe ALLOWED_ORIGINS[0] header (legacy behaviour preserved).
+      if (method === 'GET' && pathname === '/api/health') {
         return json({ ok: true, time: new Date().toISOString() }, 200, cors);
       }
-      if (request.method === 'GET' && pathname === '/api/top') {
+      if (method === 'GET' && pathname === '/api/top') {
         return await handleGetTop(env, cors);
       }
-      if (request.method === 'POST' && pathname === '/api/score') {
-        return await handlePostScore(request, env, ctx, cors);
-      }
+
+      // From here on: state-changing requests (POST /api/score, PUT/POST /name).
+      const isScorePost = method === 'POST' && pathname === '/api/score';
       const nameMatch = pathname.match(/^\/api\/score\/([A-Za-z0-9_-]{6,64})\/name$/);
-      if (nameMatch && (request.method === 'PUT' || request.method === 'POST')) {
-        return await handlePutName(request, env, nameMatch[1], cors);
+      const isNamePut = nameMatch && (method === 'PUT' || method === 'POST');
+
+      if (!isScorePost && !isNamePut) {
+        return json({ error: 'not_found' }, 404, cors);
       }
 
-      return json({ error: 'not_found' }, 404, cors);
+      // 4) Origin allowlist enforce — security: M-1 (V-05).
+      //    No Origin header (curl direct) and bogus Origin both rejected.
+      const allowedOrigins = parseAllowedOrigins(env);
+      if (!origin || !allowedOrigins.includes(origin)) {
+        secLog('origin_denied', { origin, ip: clientIp(request), path: pathname });
+        return json({ error: 'origin_not_allowed' }, 403, cors);
+      }
+
+      // 5) Content-Type strict check — security: M-2 (V-16).
+      //    Block text/plain CSRF that bypasses preflight.
+      const contentType = (request.headers.get('content-type') || '').toLowerCase();
+      if (!contentType.startsWith('application/json')) {
+        secLog('content_type_denied', { ct: contentType, ip: clientIp(request), path: pathname });
+        return json({ error: 'unsupported_content_type' }, 415, cors);
+      }
+
+      // 7) Parse body (used by both rate-limit Turnstile bypass and handlers).
+      const body = await safeJson(request);
+      if (!body) {
+        return json({ error: 'bad_json' }, 400, cors);
+      }
+
+      // 6) Rate limit — security: M-4 (V-02).
+      //    Optionally bypassed when Turnstile is configured & token verifies.
+      const turnstileOk = await maybeVerifyTurnstile(body, env, request);
+      if (!turnstileOk) {
+        const limited = await checkRateLimit(env, ctx, request);
+        if (limited) {
+          secLog('rate_limited', { ip: clientIp(request), path: pathname });
+          return json(
+            { error: 'rate_limited', retryAfter: 60 },
+            429,
+            { ...cors, 'retry-after': '60' }
+          );
+        }
+      }
+
+      // 8) Dispatch to handlers.
+      if (isScorePost) {
+        return await handlePostScore(body, env, ctx, cors, request);
+      }
+      // isNamePut — already validated by regex.
+      return await handlePutName(body, env, nameMatch[1], cors, request);
     } catch (err) {
       return json({ error: 'internal', message: String(err && err.message || err) }, 500, cors);
     }
@@ -131,12 +198,14 @@ async function handleGetTop(env, cors) {
   return json({ top: top.slice(0, size).map(publicEntry) }, 200, cors);
 }
 
-async function handlePostScore(request, env, ctx, cors) {
-  const body = await safeJson(request);
-  if (!body) return json({ error: 'bad_json' }, 400, cors);
-
+async function handlePostScore(body, env, ctx, cors, request) {
   const validation = validateSubmission(body);
   if (!validation.ok) {
+    secLog('validation_failed', {
+      detail: validation.reason,
+      ip: clientIp(request),
+      path: '/api/score',
+    });
     return json({ error: 'invalid_submission', reason: validation.reason }, 400, cors);
   }
 
@@ -144,6 +213,7 @@ async function handlePostScore(request, env, ctx, cors) {
   const serverScore = recomputeScore(stats);
 
   if (!Number.isFinite(serverScore) || serverScore < 0 || serverScore > SANITY.maxScore) {
+    secLog('score_out_of_range', { score: serverScore, ip: clientIp(request) });
     return json({ error: 'score_out_of_range', score: serverScore }, 400, cors);
   }
 
@@ -219,13 +289,13 @@ async function handlePostScore(request, env, ctx, cors) {
   }, 200, cors);
 }
 
-async function handlePutName(request, env, submissionId, cors) {
-  const body = await safeJson(request);
+async function handlePutName(body, env, submissionId, cors, request) {
   if (!body || typeof body.name !== 'string') {
     return json({ error: 'bad_json', field: 'name' }, 400, cors);
   }
   const name = sanitizeName(body.name, Number(env.NAME_MAX_LENGTH || 5));
   if (!name) {
+    secLog('invalid_name', { ip: clientIp(request), path: '/api/score/:id/name' });
     return json({ error: 'invalid_name' }, 400, cors);
   }
 
@@ -372,6 +442,11 @@ function validateSubmission(body) {
   const clearTime = Number(stats.clearTime);
   if (clearTime < SANITY.clearTimeMin || clearTime > SANITY.clearTimeMax) return fail('clear_time_range');
 
+  // M-3 (V-01): minimum tap density. Real plays clear at ~2-15 taps/sec on
+  // average. 0.5 taps/sec floor lets even slow ballad tracks pass while
+  // rejecting near-empty payloads with bogus mashScore.
+  if (taps < clearTime * SANITY.minTapDensityPerSec) return fail('tap_density_too_low');
+
   const counts = ['perfectCount', 'greatCount', 'goodCount', 'missCount'].map(k => stats[k] | 0);
   const sumCounts = counts.reduce((a, b) => a + b, 0);
   if (sumCounts !== taps) return fail('counts_do_not_sum');
@@ -395,6 +470,11 @@ function validateSubmission(body) {
   if (feverP < 0 || feverP > counts[0]) return fail('fever_perfect_inconsistent');
   if (feverGr < 0 || feverGr > counts[1]) return fail('fever_great_inconsistent');
   if (feverGo < 0 || feverGo > counts[2]) return fail('fever_good_inconsistent');
+  // M-3 (V-01): re-affirm fever total can't exceed taps. Each individual fever
+  // counter is already <= its rating count above, and rating counts sum to
+  // taps. So fever total <= taps is guaranteed transitively, but we add an
+  // explicit guard for defense in depth.
+  if (feverP + feverGr + feverGo > taps) return fail('fever_total_exceeds_taps');
 
   let beatIntervalMs = null;
   if (stats.beatIntervalMs !== undefined) {
@@ -435,6 +515,23 @@ function validateSubmission(body) {
   // mashTaps must not exceed total taps (sanity: can't have more mash hits than total).
   if (mashTaps !== null && mashTaps > taps) return fail('mash_taps_exceeds_taps');
 
+  // M-3 (V-01): mashTimeSec <= mashWindowSec — you can't mash longer than the
+  // window allows. Only enforce when both are present.
+  if (mashTimeSec !== null && mashWindowSec !== null && mashTimeSec > mashWindowSec) {
+    return fail('mash_time_exceeds_window');
+  }
+
+  // M-3 (V-01): mashTaps physical-plausibility against mashTimeSec. Humans
+  // cannot sustain >30 taps/sec, so mashTaps > mashTimeSec * 30 is impossible.
+  // This blocks the audit's `mashTaps=240, mashTimeSec=5` cheese. Only enforce
+  // when both fields are present and mashTimeSec > 0 (avoid div-by-zero traps
+  // and protect legacy clients that send mashTimeSec=0).
+  if (mashTaps !== null && mashTimeSec !== null && mashTimeSec > 0) {
+    if (mashTaps > mashTimeSec * SANITY.humanMaxTapHz) {
+      return fail('mash_taps_exceed_human_rate');
+    }
+  }
+
   // v=153+ optional fields. mashScoreVersion=2 enables strict +400/tap mode where
   // mashScore is sent separately so the server can score mash phase deterministically.
   let mashScoreVersion = null;
@@ -452,6 +549,18 @@ function validateSubmission(body) {
       return fail('mash_score_out_of_range');
     }
     mashScore = ms | 0;
+  }
+
+  // M-6 (V-08): trackId integer + range validation. Replaces previous
+  // Number.isFinite-only check. Keep null fallback so legacy clients without
+  // trackId still work (treated as anonymous track).
+  let trackId = null;
+  if (body.trackId !== undefined && body.trackId !== null) {
+    const tid = Number(body.trackId);
+    if (!Number.isInteger(tid) || tid < SANITY.trackIdMin || tid > SANITY.trackIdMax) {
+      return fail('track_id_out_of_range');
+    }
+    trackId = tid;
   }
 
   return {
@@ -477,7 +586,7 @@ function validateSubmission(body) {
         mashScoreVersion,
         mashScore,
       },
-      trackId: Number.isFinite(Number(body.trackId)) ? Number(body.trackId) : null,
+      trackId,
       version: typeof body.version === 'string' ? body.version.slice(0, 16) : null,
     },
   };
@@ -487,20 +596,29 @@ function fail(reason) { return { ok: false, reason }; }
 
 /* ------------------------------------------------------------------ name sanitation */
 
-// Keep it simple: trim whitespace, strip control chars, cap to N visible code points.
-// We intentionally allow Japanese / emoji code points — this is a JP-targeted game.
+// M-5: hardened sanitizer. Strips control chars, zero-width, full-width space,
+// NBSP, line/paragraph separators, and HTML special chars (defense in depth
+// even though clients use textContent). Caps to N visible code points.
+// Japanese / emoji code points pass through.
+const NAME_STRIP_CONTROL_RE = /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2028\u2029\u205F\u2060\uFEFF]/g;
+const NAME_STRIP_WHITESPACE_RE = /[\u00A0\u3000]/g;
+const NAME_STRIP_HTML_RE = /[<>&"'`]/g;
+const NAME_ALL_WHITESPACE_RE = /^[\s\u00A0\u3000]*$/;
+
 function sanitizeName(raw, maxLen) {
   if (typeof raw !== 'string') return null;
-  // Strip control chars and zero-width, trim whitespace.
+  // Reject if every char is whitespace (ASCII / NBSP / full-width).
+  if (NAME_ALL_WHITESPACE_RE.test(raw)) return null;
   const cleaned = raw
-    .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u2028\u2029\uFEFF]/g, '')
+    .replace(NAME_STRIP_CONTROL_RE, '')
+    .replace(NAME_STRIP_WHITESPACE_RE, '')
+    .replace(NAME_STRIP_HTML_RE, '')
     .trim();
   if (!cleaned) return null;
   // Count by code points, not UTF-16 units, to treat surrogate-pair emojis as 1 char.
   const codePoints = Array.from(cleaned);
   if (codePoints.length === 0) return null;
-  const capped = codePoints.slice(0, maxLen).join('');
-  return capped;
+  return codePoints.slice(0, maxLen).join('');
 }
 
 /* ------------------------------------------------------------------ KV helpers */
@@ -524,6 +642,66 @@ async function bumpCounter(env, key) {
   const raw = await env.RANKING.get(key);
   const n = raw ? Number(raw) | 0 : 0;
   await env.RANKING.put(key, String(n + 1));
+}
+
+/* ------------------------------------------------------------------ rate limiting (M-4 / V-02) */
+
+async function checkRateLimit(env, ctx, request) {
+  const ip = clientIp(request);
+  if (!ip || ip === 'unknown') {
+    // Without an IP we can't rate-limit fairly. Fail-open rather than block all
+    // wrangler-dev local traffic. Production traffic on Cloudflare always has
+    // cf-connecting-ip set, so this branch only fires for local testing.
+    return false;
+  }
+  const limit = Number(env.RATE_LIMIT_PER_MIN || DEFAULT_RATE_LIMIT_PER_MIN);
+  const bucket = Math.floor(Date.now() / 60_000);
+  const key = `rate:${ip}:${bucket}`;
+  const raw = await env.RANKING.get(key);
+  const current = raw ? (Number(raw) | 0) : 0;
+  if (current >= limit) {
+    return true; // limited
+  }
+  // Increment with TTL 120s (covers current bucket + next bucket overlap).
+  // Use waitUntil so the response isn't blocked by KV write latency.
+  const next = current + 1;
+  ctx.waitUntil(
+    env.RANKING.put(key, String(next), { expirationTtl: 120 })
+  );
+  return false;
+}
+
+/* ------------------------------------------------------------------ Turnstile (M-4 stub) */
+
+// Optional Turnstile token verification. Currently stubbed to always return
+// false (no bypass). When env.TURNSTILE_SECRET is configured, real verify runs
+// and a valid token bypasses the rate limit. Keep this hookable so we can flip
+// it on without code changes other than `wrangler secret put TURNSTILE_SECRET`.
+async function maybeVerifyTurnstile(body, env, request) {
+  const secret = env.TURNSTILE_SECRET;
+  if (!secret) return false; // Not configured → no bypass.
+  const token = body && typeof body.turnstileToken === 'string' ? body.turnstileToken : '';
+  if (!token) return false;
+  return await verifyTurnstile(token, env, request);
+}
+
+async function verifyTurnstile(token, env, request) {
+  try {
+    const formData = new FormData();
+    formData.append('secret', env.TURNSTILE_SECRET);
+    formData.append('response', token);
+    const ip = clientIp(request);
+    if (ip && ip !== 'unknown') formData.append('remoteip', ip);
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) return false;
+    const result = await res.json();
+    return result && result.success === true;
+  } catch {
+    return false;
+  }
 }
 
 /* ------------------------------------------------------------------ utils */
@@ -553,8 +731,15 @@ function json(obj, status, extraHeaders) {
   });
 }
 
+function parseAllowedOrigins(env) {
+  return String(env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 function buildCors(origin, env) {
-  const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const allowed = parseAllowedOrigins(env);
   const allow = allowed.includes(origin) ? origin : (allowed[0] || '*');
   return {
     'access-control-allow-origin': allow,
@@ -563,6 +748,30 @@ function buildCors(origin, env) {
     'access-control-max-age': '86400',
     'vary': 'Origin',
   };
+}
+
+function clientIp(request) {
+  return request.headers.get('cf-connecting-ip') || 'unknown';
+}
+
+// M-7: minimal security audit log. wrangler tail picks these up.
+function secLog(reason, fields) {
+  try {
+    const ts = new Date().toISOString();
+    const parts = [`[SEC]`, `ts=${ts}`, `reason=${reason}`];
+    if (fields) {
+      for (const k of Object.keys(fields)) {
+        const v = fields[k];
+        if (v === undefined || v === null) continue;
+        // Truncate to avoid log spam from giant payloads.
+        const s = String(v).slice(0, 128).replace(/\s+/g, ' ');
+        parts.push(`${k}=${s}`);
+      }
+    }
+    console.warn(parts.join(' '));
+  } catch {
+    // Logging must never throw.
+  }
 }
 
 function generateId() {

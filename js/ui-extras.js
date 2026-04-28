@@ -254,7 +254,19 @@ export function applyTweaks() {
   document.documentElement.style.setProperty('--holo-strength', (TUNING.hologramStrength / 10).toFixed(2));
 }
 export function setupTweaks() {
+  // F-2: V-19 postMessage origin 検証。信頼できる Origin からのメッセージのみ受け付ける。
+  const TRUSTED_ORIGINS = [
+    location.origin,
+    'https://kento-nakamura-gh.github.io',
+    'https://jojimageorge.github.io',
+    'https://caslive.jp',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+  ];
   window.addEventListener('message', (ev) => {
+    if (!TRUSTED_ORIGINS.includes(ev.origin)) return; // 不明な origin は無視
     const d = ev.data || {};
     if (d.type === '__activate_edit_mode') els.tweaksPanel.classList.add('open');
     else if (d.type === '__deactivate_edit_mode') els.tweaksPanel.classList.remove('open');

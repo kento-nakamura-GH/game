@@ -8,6 +8,13 @@ import { GAME_VERSION, RANKING_API, TUNING } from './config.js';
 import { state } from './state.js';
 import { els } from './dom.js';
 
+/* ---- Turnstile helper (F-7: 後付けでも対応できる枠) ----
+   現状は Turnstile widget 未組込み。将来 index.html に widget タグを追加すれば
+   自動的に token が拾われて送信される構造。 */
+function getTurnstileToken() {
+  return window.turnstile?.getResponse?.() || null;
+}
+
 /* Fire-and-forget POST in triggerClear so the network round-trip overlaps
    with the clear/video/CTA animation (~6-8s) and the result is ready by
    the time the CTA panel needs it. */
@@ -60,17 +67,38 @@ export async function submitScore() {
       feverGoodCount: state.feverGoodCount | 0,
     },
   };
+  // F-7: Turnstile token（現状は未組込み。widget 追加時に自動送信される構造）
+  const turnstileToken = getTurnstileToken();
+  if (turnstileToken) payload.turnstileToken = turnstileToken;
+
   try {
     const res = await fetch(RANKING_API + '/api/score', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json' }, // F-6: Content-Type 明示（元々OK、確認済）
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      try {
-        const err = await res.json();
-        console.warn('[ranking] submit rejected', res.status, err);
-      } catch { console.warn('[ranking] submit rejected', res.status); }
+      let errBody = null;
+      try { errBody = await res.json(); } catch { /* ignore */ }
+      console.warn('[ranking] submit rejected', res.status, errBody);
+
+      // F-3: レート制限エラー処理
+      if (res.status === 429) {
+        const retryAfter = Number(
+          res.headers.get('Retry-After') || errBody?.retryAfter || 60
+        );
+        handleRateLimit(retryAfter);
+        return null;
+      }
+
+      // F-4: invalid_submission の reason 別エラー表示
+      if (res.status === 400 && errBody?.error === 'invalid_submission') {
+        const reason = errBody?.reason || '';
+        const msg = getInvalidSubmissionMessage(reason);
+        showSubmitError(msg);
+        return null;
+      }
+
       return null;
     }
     return await res.json();
@@ -78,6 +106,54 @@ export async function submitScore() {
     console.warn('[ranking] submit failed', e);
     return null;
   }
+}
+
+/* ---- F-4: invalid_submission reason 別メッセージ ---- */
+function getInvalidSubmissionMessage(reason) {
+  switch (reason) {
+    case 'tap_density_too_low':       return 'タップ少なすぎ。もうちょい本気でやってな';
+    case 'mash_taps_exceed_human_rate': return 'マッシュ早すぎや。スコア無効になったで';
+    case 'mash_time_exceeds_window':  return 'マッシュ時間がおかしい。リトライしてや';
+    case 'fever_total_exceeds_taps':  return 'フィーバー記録に矛盾があったで。リトライ推奨';
+    case 'track_id_out_of_range':     return '曲ID不正。リロードしてみ';
+    default:                          return 'スコア検証エラー。リロードしてリトライしてな';
+  }
+}
+
+/* ---- F-3: レート制限 UI ---- */
+let rateLimitTimer = null;
+function handleRateLimit(retryAfterSec) {
+  // 送信ボタン無効化
+  if (els.nameSubmit) els.nameSubmit.disabled = true;
+
+  const updateCountdown = (remaining) => {
+    const msg = `ちょっと連投しすぎや。あと ${remaining}秒待って`;
+    if (els.nameError) els.nameError.textContent = msg;
+    if (els.rkStatus) els.rkStatus.textContent = msg;
+  };
+
+  let remaining = Math.max(1, Math.ceil(retryAfterSec));
+  updateCountdown(remaining);
+
+  if (rateLimitTimer) clearInterval(rateLimitTimer);
+  rateLimitTimer = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(rateLimitTimer);
+      rateLimitTimer = null;
+      if (els.nameSubmit) els.nameSubmit.disabled = false;
+      if (els.nameError) els.nameError.textContent = '';
+      if (els.rkStatus) els.rkStatus.textContent = '';
+    } else {
+      updateCountdown(remaining);
+    }
+  }, 1000);
+}
+
+/* ---- エラー表示ヘルパー ---- */
+function showSubmitError(msg) {
+  if (els.rkStatus) els.rkStatus.textContent = msg;
+  console.warn('[ranking] submit error:', msg);
 }
 
 export function formatName(name) {
@@ -94,25 +170,51 @@ export function renderRankingPanel(r) {
     return;
   }
 
-  // Build top rows
+  // Build top rows — F-1: innerHTML 廃止。entry.name はユーザー入力なので
+  // textContent で必ず自動エスケープする（XSS 防御の二重化）。
   els.rkList.innerHTML = '';
   r.top.forEach((entry, i) => {
     const row = document.createElement('div');
     row.className = 'rk-row' + (entry.you ? ' rk-you-row' : '');
-    row.innerHTML =
-      '<span class="rk-pos">' + (i + 1) + '</span>' +
-      '<span class="rk-name">' + formatName(entry.name) + '</span>' +
-      '<span class="rk-score">' + Number(entry.score || 0).toLocaleString('en-US') + '</span>';
+
+    const posSpan = document.createElement('span');
+    posSpan.className = 'rk-pos';
+    posSpan.textContent = String(i + 1);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'rk-name';
+    nameSpan.textContent = formatName(entry.name); // safe: textContent auto-escapes
+
+    const scoreSpan = document.createElement('span');
+    scoreSpan.className = 'rk-score';
+    scoreSpan.textContent = Number(entry.score || 0).toLocaleString('en-US');
+
+    row.appendChild(posSpan);
+    row.appendChild(nameSpan);
+    row.appendChild(scoreSpan);
     els.rkList.appendChild(row);
   });
 
   // YOU row at bottom (only if not already in top5)
+  // F-1: こちらも textContent 化（将来 you.name が入っても安全）
   const youInTop = r.top.some(e => e.you);
   if (!youInTop && r.you) {
-    els.rkYou.innerHTML =
-      '<span class="rk-pos">' + (r.you.position || '-') + '</span>' +
-      '<span class="rk-name">YOU</span>' +
-      '<span class="rk-score">' + Number(r.you.score || 0).toLocaleString('en-US') + '</span>';
+    els.rkYou.innerHTML = ''; // 先に空にしてから要素追加
+    const posSpan = document.createElement('span');
+    posSpan.className = 'rk-pos';
+    posSpan.textContent = String(r.you.position || '-');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'rk-name';
+    nameSpan.textContent = 'YOU';
+
+    const scoreSpan = document.createElement('span');
+    scoreSpan.className = 'rk-score';
+    scoreSpan.textContent = Number(r.you.score || 0).toLocaleString('en-US');
+
+    els.rkYou.appendChild(posSpan);
+    els.rkYou.appendChild(nameSpan);
+    els.rkYou.appendChild(scoreSpan);
     els.rkYou.classList.add('show');
   } else {
     els.rkYou.innerHTML = '';
@@ -287,10 +389,27 @@ export async function submitName() {
       body: JSON.stringify({ name }),
     });
     if (!res.ok) {
+      let errBody = null;
+      try { errBody = await res.json(); } catch { /* ignore */ }
+
       let msg = 'エラーが発生しました';
-      if (res.status === 409) msg = '既に登録済みやで';
-      else if (res.status === 410) msg = '他のプレイヤーに先越されたわ...';
-      else if (res.status === 400) msg = '名前に使えへん文字が入ってるで';
+      if (res.status === 409) {
+        msg = '既に登録済みやで';
+      } else if (res.status === 410) {
+        msg = '他のプレイヤーに先越されたわ...';
+      } else if (res.status === 429) {
+        // F-3: name PUT でもレート制限
+        const retryAfter = Number(
+          res.headers.get('Retry-After') || errBody?.retryAfter || 60
+        );
+        handleRateLimit(retryAfter);
+        return;
+      } else if (res.status === 400 && errBody?.error === 'invalid_name') {
+        // F-5: invalid_name 強化メッセージ
+        msg = '使えへん文字あるかも。英数字＋ひらがな＋カタカナで5文字以内にしてな';
+      } else if (res.status === 400) {
+        msg = '名前に使えへん文字が入ってるで';
+      }
       if (els.nameError) els.nameError.textContent = msg;
       if (els.nameSubmit) els.nameSubmit.disabled = false;
       return;

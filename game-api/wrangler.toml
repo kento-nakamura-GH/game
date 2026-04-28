@@ -4,12 +4,21 @@ compatibility_date = "2026-04-01"
 workers_dev = true
 
 # Allowed origins for CORS. Comma-separated. Add prod domain when decided.
+# Also used by M-1 Origin allowlist enforcement on POST/PUT.
 [vars]
 ALLOWED_ORIGINS = "https://kento-nakamura-gh.github.io,https://jojimageorge.github.io,https://caslive.jp,http://localhost:8000,http://127.0.0.1:8000"
 TOP_LIST_SIZE = "100"
 TOP_RETURN_SIZE = "5"
 NAME_MAX_LENGTH = "5"
 SUBMISSION_TTL_SECONDS = "600"
+# M-4: rate limit per IP per minute on POST/PUT (rate:<ip>:<bucket> KV keys, TTL 120s).
+# Override per-env if abuse spikes; default 60 in code.
+RATE_LIMIT_PER_MIN = "60"
+
+# Secrets (set via `wrangler secret put` — never commit values):
+#   TURNSTILE_SECRET   Cloudflare Turnstile server-side secret. When set,
+#                      a valid `turnstileToken` in the POST body bypasses the
+#                      IP rate limit. Leave unset to keep Turnstile disabled.
 
 # KV namespace for ranking storage.
 [[kv_namespaces]]
