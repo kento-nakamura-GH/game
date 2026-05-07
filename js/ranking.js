@@ -202,7 +202,10 @@ export function renderRankingPanel(r) {
     els.rkYou.innerHTML = ''; // 先に空にしてから要素追加
     const posSpan = document.createElement('span');
     posSpan.className = 'rk-pos';
-    posSpan.textContent = String(r.you.position || '-');
+    const youPos = Number(r.you.position);
+    posSpan.textContent = (Number.isFinite(youPos) && youPos > 300)
+      ? '300+'
+      : String(r.you.position || '-');
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'rk-name';

@@ -207,9 +207,9 @@
 .rk-row.rk-you-row .rk-score { color: #FFE600; }
 .rk-you {
   display: none;
-  grid-template-columns: 22px 1fr auto;
+  grid-template-columns: 44px 1fr auto;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 3px 4px;
   margin-top: 3px;
   border-top: 1px solid rgba(255,230,0,0.4);
@@ -221,6 +221,7 @@
   font-family: 'Press Start 2P', 'VT323', monospace;
   font-size: 11px;
   text-align: right;
+  min-width: 44px;
 }
 .rk-you .rk-name {
   color: #FF4DF6;

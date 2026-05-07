@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v182';
+export const GAME_VERSION = 'v183';
 
 /* ---------- Fever phase ----------
    Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
