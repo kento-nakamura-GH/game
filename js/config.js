@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v183';
+export const GAME_VERSION = 'v184';
 
 /* ---------- Fever phase ----------
    Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
@@ -14,7 +14,7 @@ export const FEVER_THRESHOLD = 60;
 // removed — in practice nobody has wrangler dev running locally, so localhost
 // would fail-fast with a network error and show "接続できません" even though
 // the prod API is up. For local dev, edit this constant temporarily.
-export const RANKING_API = 'https://kyomuusa-ranking.kento-nakamura-62a.workers.dev';
+export const RANKING_API = 'https://kyomuusa-ranking.caslive.workers.dev';
 
 export const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,

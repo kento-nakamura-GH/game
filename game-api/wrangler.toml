@@ -2,6 +2,7 @@ name = "kyomuusa-ranking"
 main = "src/index.js"
 compatibility_date = "2026-04-01"
 workers_dev = true
+account_id = "ae324f06b7baaa0b952551911aaea50a"
 
 # Allowed origins for CORS. Comma-separated. Add prod domain when decided.
 # Also used by M-1 Origin allowlist enforcement on POST/PUT.
@@ -23,5 +24,5 @@ RATE_LIMIT_PER_MIN = "60"
 # KV namespace for ranking storage.
 [[kv_namespaces]]
 binding = "RANKING"
-id = "c06b8ad201e24d7fbe114c3c7a8fb792"
-preview_id = "af2ff69798d447ecbbf82d070afcb47c"
+id = "06d64bf8c9194fc9ab2013fc4fd70814"
+preview_id = "76cd4a59a37645c7b5d7512400ebdcae"
