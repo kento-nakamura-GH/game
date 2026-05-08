@@ -7,7 +7,7 @@ account_id = "ae324f06b7baaa0b952551911aaea50a"
 # Allowed origins for CORS. Comma-separated. Add prod domain when decided.
 # Also used by M-1 Origin allowlist enforcement on POST/PUT.
 [vars]
-ALLOWED_ORIGINS = "https://kento-nakamura-gh.github.io,https://jojimageorge.github.io,https://caslive.jp,http://localhost:8000,http://127.0.0.1:8000"
+ALLOWED_ORIGINS = "https://kento-nakamura-gh.github.io,https://caslive.app,http://localhost:8000,http://127.0.0.1:8000"
 TOP_LIST_SIZE = "300"
 TOP_RETURN_SIZE = "5"
 NAME_MAX_LENGTH = "5"
