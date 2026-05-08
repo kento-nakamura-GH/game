@@ -1,0 +1,24 @@
+# Vercelデプロイ対象外（フロント配信に不要なファイル）
+
+# Cloudflare Worker（別管理、kyomuusa-ranking.caslive.workers.dev）
+game-api/
+
+# ローカル開発用ツール（BPM計測・WebP変換等）
+tools/
+
+# ドキュメント（README等、フロント配信に不要）
+*.md
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Backup / temp
+assets/_backup/
+*.tmp
+*.bak
+*.log
+.last-cleanup
