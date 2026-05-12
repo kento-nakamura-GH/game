@@ -76,6 +76,8 @@ export function setupDom() {
     bgPickerList: $('#bg-picker-list'),
     roomBgImg: $('.room-bg-img'),
     shareCopy: $('#share-copy'),
+    btnAppstore: $('#btn-appstore'),
+    btnGoogleplay: $('#btn-googleplay'),
     shareToast: $('#cta-share-toast'),
     mashOverlay: $('#mash-overlay'),
     mashCount: $('#mash-count'),

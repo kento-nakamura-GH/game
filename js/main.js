@@ -25,6 +25,7 @@ import {
   openSongPicker, closeSongPicker, handleTitleTap,
   applyTweaks, setupTweaks,
 } from './ui-extras.js';
+import { trackEvent } from './analytics.js';
 
 /* ---------- Wire up DOM event handlers ---------- */
 function bind() {
@@ -52,11 +53,14 @@ function bind() {
 
   on(els.yesBtn, 'click', onYes);
   on(els.noBtn, 'click', onNo);
-  on(els.shareX, 'click', shareOnX);
-  on(els.shareLine, 'click', shareOnLine);
-  on(els.shareThreads, 'click', shareOnThreads);
-  on(els.shareCopy, 'click', shareCopy);
+  on(els.shareX, 'click', (e) => { trackEvent('share_x', { method: 'twitter' }); shareOnX(e); });
+  on(els.shareLine, 'click', (e) => { trackEvent('share_line', { method: 'line' }); shareOnLine(e); });
+  on(els.shareThreads, 'click', (e) => { trackEvent('share_threads', { method: 'threads' }); shareOnThreads(e); });
+  on(els.shareCopy, 'click', (e) => { trackEvent('share_copy', { method: 'copy' }); shareCopy(e); });
+  on(els.btnAppstore, 'click', () => trackEvent('cta_appstore', { platform: 'ios' }));
+  on(els.btnGoogleplay, 'click', () => trackEvent('cta_googleplay', { platform: 'android' }));
   on(els.retryBtn, 'click', () => {
+    trackEvent('retry_click');
     state.cleared = false;
     state.running = false;
     state.rankingResult = null;
